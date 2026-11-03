@@ -14,45 +14,76 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-between p-4">
     
-    <!-- Üst Bilgi ve Zorluk Seçimi -->
+    <!-- ANA MENÜ EKRANI -->
+    <div id="mainMenu" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 z-50">
+        <div class="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl mb-6">
+            <span class="text-4xl">♟️</span>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-wide mb-2 text-center">AI Destekli Satranç</h1>
+        <p class="text-slate-400 text-sm mb-8 text-center">Yapay zekaya karşı yeteneklerini test et!</p>
+        
+        <div class="w-full max-w-xs flex flex-col gap-4">
+            <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 rounded-xl transition shadow-lg text-lg">
+                Oyuna Başla
+            </button>
+            <div class="bg-slate-800 border border-slate-700 px-4 py-3 rounded-xl flex items-center justify-between">
+                <span class="text-sm text-slate-300 font-medium">Zorluk Seviyesi:</span>
+                <select id="menuDifficulty" class="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 text-sm focus:outline-none">
+                    <option value="easy">Kolay (Çok Basit)</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Zor</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- OYUN EKRANI -->
     <header class="w-full max-w-md flex flex-col items-center gap-2 my-2">
         <div class="flex justify-between items-center w-full px-2">
             <h1 class="text-xl font-bold tracking-wide">AI Destekli Satranç v1.5</h1>
-            <div class="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700">
-                <span class="text-xl">♟️</span>
-            </div>
+            <button onclick="returnToMenu()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg transition text-slate-300">
+                Ana Menü
+            </button>
         </div>
         <div class="flex items-center justify-between w-full bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 text-sm">
-            <span class="text-slate-400">Zorluk Seviyesi:</span>
-            <select id="difficulty" class="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none">
-                <option value="easy">Kolay</option>
-                <option value="normal" selected>Normal</option>
-                <option value="hard">Zor</option>
-            </select>
+            <span class="text-slate-400">Aktif Zorluk:</span>
+            <span id="activeDifficultyText" class="font-semibold text-indigo-400 uppercase">Normal</span>
         </div>
     </header>
 
-    <!-- Satranç Tahtası Alanı -->
     <main class="w-full max-w-md flex flex-col items-center">
         <div id="status" class="text-sm font-medium text-slate-300 mb-2">Sıra sizde (Beyaz)</div>
         <div id="board" class="board-grid w-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800"></div>
     </main>
 
-    <!-- Alt Kontroller -->
     <footer class="w-full max-w-md flex justify-center gap-4 my-4">
-        <button onclick="resetGame()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl transition shadow-lg">
-            Yeni Oyun
+        <button onclick="resetGame()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium px-5 py-2.5 rounded-xl transition shadow-lg">
+            Yeniden Başlat
         </button>
     </footer>
 
-    <!-- Oyun Sonu Modalı -->
+    <!-- OYUN SONU MODALI -->
     <div id="gameModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
             <h3 id="modalTitle" class="text-2xl font-bold mb-2">Oyun Bitti</h3>
-            <p id="modalMessage" class="text-slate-300 mb-6">Sonuç durumu burada yer alacak.</p>
-            <button onclick="resetGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition">
+            <p id="modalMessage" class="text-slate-300 mb-6">Sonuç durumu.</p>
+            <button onclick="resetGame(); closeModal();" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition">
                 Tekrar Oyna
             </button>
+        </div>
+    </div>
+
+    <!-- PİYON TERFİ SEÇİM MODALI -->
+    <div id="promotionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Piyon Terfisi</h3>
+            <p class="text-slate-300 text-sm mb-4">Lütfen yeni taşı seçin:</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="selectPromotion('q')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♕</button>
+                <button onclick="selectPromotion('r')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♖</button>
+                <button onclick="selectPromotion('b')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♗</button>
+                <button onclick="selectPromotion('n')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♘</button>
+            </div>
         </div>
     </div>
 
@@ -65,13 +96,30 @@
         let game = new Chess();
         let selectedSquare = null;
         let possibleMoves = [];
+        let pendingPromotion = null;
 
         const boardEl = document.getElementById('board');
         const statusEl = document.getElementById('status');
         const modalEl = document.getElementById('gameModal');
         const modalTitle = document.getElementById('modalTitle');
         const modalMessage = document.getElementById('modalMessage');
-        const difficultyEl = document.getElementById('difficulty');
+        const mainMenuEl = document.getElementById('mainMenu');
+        const promotionModalEl = document.getElementById('promotionModal');
+        const menuDifficultyEl = document.getElementById('menuDifficulty');
+        const activeDifficultyText = document.getElementById('activeDifficultyText');
+
+        let currentDifficulty = 'normal';
+
+        function startGame() {
+            currentDifficulty = menuDifficultyEl.value;
+            activeDifficultyText.textContent = menuDifficultyEl.options[menuDifficultyEl.selectedIndex].text;
+            mainMenuEl.classList.add('hidden');
+            resetGame();
+        }
+
+        function returnToMenu() {
+            mainMenuEl.classList.remove('hidden');
+        }
 
         function renderBoard() {
             boardEl.innerHTML = '';
@@ -121,20 +169,18 @@
                     renderBoard();
                 }
             } else {
-                const move = game.move({
-                    from: selectedSquare,
-                    to: squareId,
-                    promotion: 'q'
-                });
+                const moves = game.moves({ square: selectedSquare, verbose: true });
+                const targetMove = moves.find(m => m.to === squareId);
 
-                selectedSquare = null;
-                possibleMoves = [];
-
-                if (move) {
-                    renderBoard();
-                    if (!game.game_over()) {
-                        setTimeout(makeAIMove, 250);
+                if (targetMove) {
+                    if (targetMove.promotion) {
+                        pendingPromotion = { from: selectedSquare, to: squareId };
+                        promotionModalEl.classList.remove('hidden');
+                        promotionModalEl.classList.add('flex');
+                        return;
                     }
+
+                    executeMove({ from: selectedSquare, to: squareId, promotion: 'q' });
                 } else {
                     const piece = game.get(squareId);
                     if (piece && piece.color === game.turn()) {
@@ -142,8 +188,32 @@
                         possibleMoves = game.moves({ square: squareId, verbose: true }).map(m => m.to);
                         renderBoard();
                     } else {
+                        selectedSquare = null;
+                        possibleMoves = [];
                         renderBoard();
                     }
+                }
+            }
+        }
+
+        function selectPromotion(pieceType) {
+            promotionModalEl.classList.add('hidden');
+            promotionModalEl.classList.remove('flex');
+            if (pendingPromotion) {
+                executeMove({ from: pendingPromotion.from, to: pendingPromotion.to, promotion: pieceType });
+                pendingPromotion = null;
+            }
+        }
+
+        function executeMove(moveDetails) {
+            const move = game.move(moveDetails);
+            selectedSquare = null;
+            possibleMoves = [];
+
+            if (move) {
+                renderBoard();
+                if (!game.game_over()) {
+                    setTimeout(makeAIMove, 300);
                 }
             }
         }
@@ -154,16 +224,17 @@
             const moves = game.moves({ verbose: true });
             if (moves.length === 0) return;
 
-            const diff = difficultyEl.value;
             let selectedMove;
 
-            if (diff === 'easy') {
+            if (currentDifficulty === 'easy') {
+                // Kolay mod: Tamamen rastgele hamle yapar, bazen saçmalar
                 selectedMove = moves[Math.floor(Math.random() * moves.length)];
-            } else if (diff === 'normal') {
+            } else if (currentDifficulty === 'normal') {
+                // Normal mod: Taş alabiliyorsa alır, yoksa rastgele oynar
                 const captures = moves.filter(m => m.captured);
                 selectedMove = captures.length > 0 ? captures[Math.floor(Math.random() * captures.length)] : moves[Math.floor(Math.random() * moves.length)];
             } else {
-                // Hard: Basit önceliklendirme
+                // Zor mod: Basit ağırlıklandırma (taş yemeyi önceliklendirir)
                 selectedMove = moves.reduce((best, m) => (m.captured ? m : best), moves[0]);
             }
 
@@ -202,12 +273,16 @@
             modalEl.classList.add('flex');
         }
 
+        function closeModal() {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+        }
+
         function resetGame() {
             game.reset();
             selectedSquare = null;
             possibleMoves = [];
-            modalEl.classList.add('hidden');
-            modalEl.classList.remove('flex');
+            closeModal();
             renderBoard();
         }
 
