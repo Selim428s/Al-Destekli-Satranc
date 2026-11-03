@@ -3,189 +3,406 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Destekli Satranç v1.5</title>
+    <title>Al destekli Satranç</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chess.js for move rules and validation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Chess App Favicon & Icon for WebIntoApp/Mobile -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23047857'/><circle cx='256' cy='160' r='60' fill='%23ffffff'/><path d='M200 240 C200 220, 312 220, 312 240 L290 350 L222 350 Z' fill='%23ffffff'/><rect x='180' y='350' width='152' height='30' rx='10' fill='%23ffffff'/><rect x='156' y='390' width='200' height='40' rx='15' fill='%23ffffff'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23047857'/><circle cx='256' cy='160' r='60' fill='%23ffffff'/><path d='M200 240 C200 220, 312 220, 312 240 L290 350 L222 350 Z' fill='%23ffffff'/><rect x='180' y='350' width='152' height='30' rx='10' fill='%23ffffff'/><rect x='156' y='390' width='200' height='40' rx='15' fill='%23ffffff'/></svg>">
+
     <style>
-        body { font-family: 'Inter', sans-serif; user-select: none; }
-        .board-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; }
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes pulsePawn {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 25px rgba(16, 185, 129, 0.9); }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .pawn-splash {
+            animation: pulsePawn 1.5s infinite ease-in-out;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-between p-4">
-    
-    <!-- ANA MENÜ EKRANI -->
-    <div id="mainMenu" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 z-50">
-        <div class="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl mb-6">
-            <span class="text-4xl">♟️</span>
-        </div>
-        <h1 class="text-3xl font-extrabold tracking-wide mb-2 text-center">AI Destekli Satranç</h1>
-        <p class="text-slate-400 text-sm mb-8 text-center">Yapay zekaya karşı yeteneklerini test et!</p>
+<body class="bg-gray-950 text-white min-h-screen flex flex-col items-center justify-center relative">
+
+    <!-- Background Chessboard Pattern filling the screen -->
+    <div id="bg-board" class="absolute inset-0 opacity-15 pointer-events-none grid grid-cols-8 grid-rows-8 z-0"></div>
+
+    <!-- Main Container -->
+    <div id="app-container" class="relative z-10 w-full max-w-md mx-auto p-4 flex flex-col items-center justify-center min-h-screen">
         
-        <div class="w-full max-w-xs flex flex-col gap-4">
-            <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 rounded-xl transition shadow-lg text-lg">
-                Oyuna Başla
-            </button>
-            <div class="bg-slate-800 border border-slate-700 px-4 py-3 rounded-xl flex items-center justify-between">
-                <span class="text-sm text-slate-300 font-medium">Zorluk Seviyesi:</span>
-                <select id="menuDifficulty" class="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 text-sm focus:outline-none">
-                    <option value="easy">Kolay (Çok Basit)</option>
-                    <option value="normal" selected>Normal</option>
-                    <option value="hard">Zor</option>
-                </select>
+        <!-- 1. SPLASH SCREEN (Pawn Intro) -->
+        <div id="screen-splash" class="flex flex-col items-center justify-center space-y-6 transition-opacity duration-700">
+            <div class="text-8xl md:text-9xl pawn-splash filter drop-shadow-2xl">♟️</div>
+            <h1 class="text-3xl font-extrabold tracking-wider text-emerald-400">Al destekli Satranç</h1>
+            <p class="text-sm text-gray-400 animate-pulse">Yükleniyor...</p>
+        </div>
+
+        <!-- 2. MAIN MENU SCREEN -->
+        <div id="screen-main-menu" class="hidden w-full flex flex-col items-center animate-fade-in">
+            <div class="bg-emerald-700 bg-opacity-95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full text-center border-2 border-emerald-500 space-y-6">
+                <h1 class="text-3xl font-extrabold tracking-tight text-white mb-6 drop-shadow">Al destekli Satranç</h1>
+                
+                <div class="space-y-4 w-full">
+                    <button onclick="showScreen('screen-play-menu')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-lg">
+                        --- Oyna ---
+                    </button>
+                    <button onclick="openModal('Yakında eklenecek')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-lg">
+                        --- Ayarlar---
+                    </button>
+                    <button onclick="openModal('Oyundan çıkmak için tarayıcı sekmesini kapatabilirsiniz.')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-lg">
+                        --- Oyundan çık ---
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. PLAY MENU SCREEN -->
+        <div id="screen-play-menu" class="hidden w-full flex flex-col items-center animate-fade-in">
+            <div class="bg-emerald-700 bg-opacity-95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full text-center border-2 border-emerald-500 space-y-6">
+                <h2 class="text-2xl font-extrabold text-white mb-6">Oyun Modu</h2>
+                
+                <div class="space-y-4 w-full">
+                    <button onclick="showScreen('screen-single-menu')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md px-2">
+                        Tek kişi ile oyna (AI ile)
+                    </button>
+                    <button onclick="openModal('Yakında eklenecek')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md">
+                        İki kişi ile oyna
+                    </button>
+                    <button onclick="showScreen('screen-main-menu')" class="w-full py-3 bg-gray-800 hover:bg-gray-900 text-gray-200 font-semibold rounded-xl shadow transition transform active:scale-95 border border-gray-700 text-sm mt-4">
+                        --- Geri ---
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3.5 DIFFICULTY SELECTION SCREEN (Ayarla Pop-up/Menü) -->
+        <div id="screen-difficulty-menu" class="hidden w-full flex flex-col items-center animate-fade-in">
+            <div class="bg-emerald-700 bg-opacity-95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full text-center border-2 border-emerald-500 space-y-4">
+                <h2 class="text-2xl font-extrabold text-white mb-2">Yapay Zeka Ayarları</h2>
+                <p class="text-xs text-emerald-100 mb-4">Bir zorluk seviyesi seçin:</p>
+                
+                <div class="space-y-3 w-full">
+                    <button onclick="selectDifficultyAndGoNext('easy')" class="w-full py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md flex items-center justify-between px-6">
+                        <span>🌱 Kolay</span>
+                        <span class="text-xs text-emerald-300 font-normal">Hatalar yapar</span>
+                    </button>
+                    <button onclick="selectDifficultyAndGoNext('medium')" class="w-full py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md flex items-center justify-between px-6">
+                        <span>⚔️ Normal</span>
+                        <span class="text-xs text-emerald-300 font-normal">İnsan Seviyesi</span>
+                    </button>
+                    <button onclick="selectDifficultyAndGoNext('hard')" class="w-full py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md flex items-center justify-between px-6">
+                        <span>🏆 Zor</span>
+                        <span class="text-xs text-yellow-300 font-normal">Usta Seviyesi</span>
+                    </button>
+                    <button onclick="showScreen('screen-single-menu')" class="w-full py-3 bg-gray-800 hover:bg-gray-900 text-gray-200 font-semibold rounded-xl shadow transition transform active:scale-95 border border-gray-700 text-sm mt-3">
+                        --- Geri ---
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. SINGLE PLAYER MENU SCREEN -->
+        <div id="screen-single-menu" class="hidden w-full flex flex-col items-center animate-fade-in">
+            <div class="bg-emerald-700 bg-opacity-95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full text-center border-2 border-emerald-500 space-y-6">
+                <h2 class="text-2xl font-extrabold text-white mb-2">Tek Kişi ile Oyna (AI ile)</h2>
+                <div id="selected-diff-badge" class="inline-block bg-emerald-900 text-emerald-200 text-xs px-3 py-1 rounded-full border border-emerald-500 mb-2">Zorluk: Normal</div>
+                
+                <div class="space-y-4 w-full">
+                    <button onclick="startChessGame()" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-lg">
+                        --- Başla ---
+                    </button>
+                    <button onclick="showScreen('screen-difficulty-menu')" class="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold rounded-xl shadow-lg transition transform active:scale-95 border border-emerald-600 text-md">
+                        --- Ayarla ---
+                    </button>
+                    <button onclick="showScreen('screen-play-menu')" class="w-full py-3 bg-gray-800 hover:bg-gray-900 text-gray-200 font-semibold rounded-xl shadow transition transform active:scale-95 border border-gray-700 text-sm mt-4">
+                        --- Geri ---
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. GAME SCREEN -->
+        <div id="screen-game" class="hidden w-full flex flex-col items-center animate-fade-in max-w-lg">
+            <div class="w-full flex justify-between items-center mb-3 bg-gray-900 p-3 rounded-xl border border-gray-800 shadow">
+                <div id="game-status" class="text-sm font-semibold text-emerald-400">Oyun Başladı!</div>
+                <button onclick="showScreen('screen-main-menu')" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow transition">Menüye Dön</button>
+            </div>
+
+            <!-- Chessboard UI -->
+            <div id="chessboard-container" class="w-full aspect-square bg-emerald-900 p-2 rounded-2xl shadow-2xl border-4 border-emerald-700 relative">
+                <div id="chessboard-grid" class="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden shadow-inner"></div>
+            </div>
+
+            <!-- Game Info / Status -->
+            <div class="w-full mt-3 bg-gray-900 p-3 rounded-xl border border-gray-800 flex justify-between items-center text-xs text-gray-300 shadow">
+                <div id="player-color-info" class="font-medium">Renginiz: <span id="my-color-text" class="text-white font-bold"></span></div>
+                <div id="ai-status" class="italic text-gray-400">Yapay zeka düşünüyor...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PROMOTION MODAL (Piyon Terfi Seçim Kutusu) -->
+    <div id="promotion-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden animate-fade-in p-4">
+        <div class="bg-emerald-800 border-2 border-emerald-500 rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center text-white">
+            <h3 class="text-xl font-bold mb-2 text-emerald-200">Piyon Terfisi</h3>
+            <p class="text-xs text-emerald-100 mb-6">Dönüştürmek istediğiniz taşı seçin:</p>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="selectPromotionPiece('q')" class="flex flex-col items-center justify-center p-3 bg-emerald-900 hover:bg-emerald-700 border border-emerald-500 rounded-xl transition transform active:scale-95 shadow">
+                    <span class="text-4xl mb-1">♛</span>
+                    <span class="text-xs font-bold">Vezir</span>
+                </button>
+                <button onclick="selectPromotionPiece('r')" class="flex flex-col items-center justify-center p-3 bg-emerald-900 hover:bg-emerald-700 border border-emerald-500 rounded-xl transition transform active:scale-95 shadow">
+                    <span class="text-4xl mb-1">♜</span>
+                    <span class="text-xs font-bold">Kale</span>
+                </button>
+                <button onclick="selectPromotionPiece('b')" class="flex flex-col items-center justify-center p-3 bg-emerald-900 hover:bg-emerald-700 border border-emerald-500 rounded-xl transition transform active:scale-95 shadow">
+                    <span class="text-4xl mb-1">♝</span>
+                    <span class="text-xs font-bold">Fil</span>
+                </button>
+                <button onclick="selectPromotionPiece('n')" class="flex flex-col items-center justify-center p-3 bg-emerald-900 hover:bg-emerald-700 border border-emerald-500 rounded-xl transition transform active:scale-95 shadow">
+                    <span class="text-4xl mb-1">♞</span>
+                    <span class="text-xs font-bold">At</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- OYUN EKRANI -->
-    <header class="w-full max-w-md flex flex-col items-center gap-2 my-2">
-        <div class="flex justify-between items-center w-full px-2">
-            <h1 class="text-xl font-bold tracking-wide">AI Destekli Satranç v1.5</h1>
-            <button onclick="returnToMenu()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg transition text-slate-300">
-                Ana Menü
-            </button>
-        </div>
-        <div class="flex items-center justify-between w-full bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 text-sm">
-            <span class="text-slate-400">Aktif Zorluk:</span>
-            <span id="activeDifficultyText" class="font-semibold text-indigo-400 uppercase">Normal</span>
-        </div>
-    </header>
-
-    <main class="w-full max-w-md flex flex-col items-center">
-        <div id="status" class="text-sm font-medium text-slate-300 mb-2">Sıra sizde (Beyaz)</div>
-        <div id="board" class="board-grid w-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800"></div>
-    </main>
-
-    <footer class="w-full max-w-md flex justify-center gap-4 my-4">
-        <button onclick="resetGame()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium px-5 py-2.5 rounded-xl transition shadow-lg">
-            Yeniden Başlat
-        </button>
-    </footer>
-
-    <!-- OYUN SONU MODALI -->
-    <div id="gameModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-            <h3 id="modalTitle" class="text-2xl font-bold mb-2">Oyun Bitti</h3>
-            <p id="modalMessage" class="text-slate-300 mb-6">Sonuç durumu.</p>
-            <button onclick="resetGame(); closeModal();" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition">
-                Tekrar Oyna
-            </button>
+    <!-- GAME OVER RESULT MODAL -->
+    <div id="game-over-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden animate-fade-in p-4">
+        <div class="bg-emerald-800 border-2 border-emerald-500 rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center text-white">
+            <div id="game-over-icon" class="text-6xl mb-3">🏆</div>
+            <h3 id="game-over-title" class="text-2xl font-extrabold mb-2 text-white">Kazandın</h3>
+            <p id="game-over-desc" class="text-xs text-emerald-100 mb-6">Tebrikler, harika bir galibiyet!</p>
+            
+            <div class="space-y-3">
+                <button onclick="closeGameOverModal(); startChessGame();" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow transition transform active:scale-95 border border-emerald-400 text-sm">
+                    Yeniden Oyna
+                </button>
+                <button onclick="closeGameOverModal(); showScreen('screen-main-menu');" class="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-gray-200 font-semibold rounded-xl shadow transition transform active:scale-95 border border-gray-700 text-xs">
+                    Ana Menü
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- PİYON TERFİ SEÇİM MODALI -->
-    <div id="promotionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-            <h3 class="text-xl font-bold mb-4">Piyon Terfisi</h3>
-            <p class="text-slate-300 text-sm mb-4">Lütfen yeni taşı seçin:</p>
-            <div class="flex justify-center gap-3">
-                <button onclick="selectPromotion('q')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♕</button>
-                <button onclick="selectPromotion('r')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♖</button>
-                <button onclick="selectPromotion('b')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♗</button>
-                <button onclick="selectPromotion('n')" class="w-14 h-14 bg-slate-700 hover:bg-indigo-600 rounded-xl text-3xl flex items-center justify-center transition">♘</button>
-            </div>
+    <!-- CUSTOM MODAL BOX ("Yakında eklenecek") with 'X' in top right -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center hidden animate-fade-in p-4">
+        <div class="bg-emerald-800 border-2 border-emerald-500 rounded-2xl p-6 w-80 relative shadow-2xl text-center text-white">
+            <button onclick="closeModal()" class="absolute top-3 right-3 text-white hover:text-red-300 font-bold text-xl px-2.5 py-0.5 rounded-full bg-emerald-900 hover:bg-emerald-950 transition">✕</button>
+            <div id="modal-message" class="text-lg font-semibold mt-6 mb-2">Yakında eklenecek</div>
         </div>
     </div>
 
     <script>
+        // Screen Navigation Manager
+        function showScreen(screenId) {
+            const screens = ['screen-splash', 'screen-main-menu', 'screen-play-menu', 'screen-difficulty-menu', 'screen-single-menu', 'screen-game'];
+            screens.forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        let selectedDifficulty = 'medium'; // default
+
+        function selectDifficultyAndGoNext(diff) {
+            selectedDifficulty = diff;
+            const diffNames = { easy: '🌱 Kolay', medium: '⚔️ Normal', hard: '🏆 Zor' };
+            document.getElementById('selected-diff-badge').innerText = 'Zorluk: ' + diffNames[diff];
+            showScreen('screen-single-menu');
+        }
+
+        // Modal Handler with 'X' Close button
+        function openModal(message) {
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function showGameOverModal(title, desc, icon) {
+            document.getElementById('game-over-title').innerText = title;
+            document.getElementById('game-over-desc').innerText = desc;
+            document.getElementById('game-over-icon').innerText = icon;
+            document.getElementById('game-over-modal').classList.remove('hidden');
+        }
+
+        function closeGameOverModal() {
+            document.getElementById('game-over-modal').classList.add('hidden');
+        }
+
+        // Generate Background Chessboard
+        function generateBgBoard() {
+            const bg = document.getElementById('bg-board');
+            bg.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const tile = document.createElement('div');
+                    tile.className = ((r + c) % 2 === 1) ? 'bg-emerald-900' : 'bg-emerald-950';
+                    bg.appendChild(tile);
+                }
+            }
+        }
+        generateBgBoard();
+
+        // Intro sequence: Pawn splash screen shown on load, then auto switches to main menu
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                showScreen('screen-main-menu');
+            }, 1800);
+        });
+
+        // ----------------- CHESS GAME & AI ENGINE -----------------
+        let chessGame = null;
+        let playerColor = 'w'; // 'w' or 'b'
+        let selectedSquare = null;
+        let possibleMoves = [];
+        let pendingPromotionMove = null;
+
         const pieceSymbols = {
             'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
             'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
         };
 
-        let game = new Chess();
-        let selectedSquare = null;
-        let possibleMoves = [];
-        let pendingPromotion = null;
+        function startChessGame() {
+            chessGame = new Chess();
+            // Random color selection as requested: 50% white, 50% black
+            playerColor = Math.random() < 0.5 ? 'w' : 'b';
+            
+            document.getElementById('my-color-text').innerText = (playerColor === 'w') ? 'Beyaz' : 'Siyah';
+            showScreen('screen-game');
+            renderBoard();
 
-        const boardEl = document.getElementById('board');
-        const statusEl = document.getElementById('status');
-        const modalEl = document.getElementById('gameModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalMessage = document.getElementById('modalMessage');
-        const mainMenuEl = document.getElementById('mainMenu');
-        const promotionModalEl = document.getElementById('promotionModal');
-        const menuDifficultyEl = document.getElementById('menuDifficulty');
-        const activeDifficultyText = document.getElementById('activeDifficultyText');
-
-        let currentDifficulty = 'normal';
-
-        function startGame() {
-            currentDifficulty = menuDifficultyEl.value;
-            activeDifficultyText.textContent = menuDifficultyEl.options[menuDifficultyEl.selectedIndex].text;
-            mainMenuEl.classList.add('hidden');
-            resetGame();
-        }
-
-        function returnToMenu() {
-            mainMenuEl.classList.remove('hidden');
+            // If player got black, AI (white) makes the opening move automatically
+            if (playerColor === 'b') {
+                document.getElementById('ai-status').innerText = 'Yapay zeka hamle yapıyor...';
+                setTimeout(aiMove, 500);
+            } else {
+                document.getElementById('ai-status').innerText = 'Sıra sizde';
+            }
         }
 
         function renderBoard() {
-            boardEl.innerHTML = '';
-            const board = game.board();
-            
+            const grid = document.getElementById('chessboard-grid');
+            grid.innerHTML = '';
+
+            const board = chessGame.board();
+            const isWhiteBottom = (playerColor === 'w');
+
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
-                    const squareId = String.fromCharCode(97 + c) + (8 - r);
-                    const square = board[r][c];
-                    const isDark = (r + c) % 2 === 1;
-                    const isSelected = selectedSquare === squareId;
-                    const isPossible = possibleMoves.includes(squareId);
+                    const actualRow = isWhiteBottom ? r : 7 - r;
+                    const actualCol = isWhiteBottom ? c : 7 - c;
 
-                    const sqEl = document.createElement('div');
-                    sqEl.className = `flex items-center justify-center text-4xl cursor-pointer relative ${
-                        isDark ? 'bg-amber-900/60' : 'bg-amber-100/80'
-                    } ${isSelected ? 'ring-4 ring-indigo-500 inset-0' : ''}`;
+                    const squareDiv = document.createElement('div');
+                    const squareName = String.fromCharCode(97 + actualCol) + (8 - actualRow);
                     
-                    if (isPossible) {
-                        const dot = document.createElement('div');
-                        dot.className = 'absolute w-4 h-4 bg-indigo-500/60 rounded-full';
-                        sqEl.appendChild(dot);
+                    const isDark = (actualRow + actualCol) % 2 === 1;
+                    let bgColor = isDark ? 'bg-emerald-700' : 'bg-emerald-200 text-emerald-900';
+
+                    if (selectedSquare === squareName) {
+                        bgColor = 'bg-yellow-500';
                     }
 
-                    if (square) {
-                        const pieceSpan = document.createElement('span');
-                        pieceSpan.textContent = pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type];
-                        pieceSpan.className = `${square.color === 'w' ? 'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]' : 'text-slate-950'} font-bold transition-transform hover:scale-110`;
-                        sqEl.appendChild(pieceSpan);
+                    if (possibleMoves.includes(squareName)) {
+                        bgColor = isDark ? 'bg-emerald-500 ring-2 ring-yellow-400' : 'bg-emerald-300 ring-2 ring-yellow-500';
                     }
 
-                    sqEl.addEventListener('click', () => handleSquareClick(squareId));
-                    boardEl.appendChild(sqEl);
+                    squareDiv.className = `w-full h-full flex items-center justify-center text-3xl sm:text-4xl cursor-pointer transition-colors ${bgColor}`;
+                    
+                    const piece = board[actualRow][actualCol];
+                    if (piece) {
+                        const isPieceWhite = (piece.color === 'w');
+                        const pieceColorClass = isPieceWhite ? 'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)]';
+                        squareDiv.innerHTML = `<span class="${pieceColorClass}">${pieceSymbols[isPieceWhite ? piece.type.toUpperCase() : piece.type.toLowerCase()]}</span>`;
+                    }
+
+                    squareDiv.dataset.square = squareName;
+                    squareDiv.addEventListener('click', () => handleSquareClick(squareName));
+
+                    grid.appendChild(squareDiv);
                 }
             }
-            updateStatus();
+            updateGameStatusText();
         }
 
-        function handleSquareClick(squareId) {
-            if (game.game_over()) return;
+        function handleSquareClick(square) {
+            if (chessGame.game_over()) return;
+            if (chessGame.turn() !== playerColor) return;
+
+            const piece = chessGame.get(square);
 
             if (selectedSquare === null) {
-                const piece = game.get(squareId);
-                if (piece && piece.color === game.turn()) {
-                    selectedSquare = squareId;
-                    possibleMoves = game.moves({ square: squareId, verbose: true }).map(m => m.to);
+                if (piece && piece.color === playerColor) {
+                    selectedSquare = square;
+                    const moves = chessGame.moves({ square: square, verbose: true });
+                    possibleMoves = moves.map(m => m.to);
                     renderBoard();
                 }
             } else {
-                const moves = game.moves({ square: selectedSquare, verbose: true });
-                const targetMove = moves.find(m => m.to === squareId);
+                if (selectedSquare === square) {
+                    selectedSquare = null;
+                    possibleMoves = [];
+                    renderBoard();
+                    return;
+                }
 
-                if (targetMove) {
-                    if (targetMove.promotion) {
-                        pendingPromotion = { from: selectedSquare, to: squareId };
-                        promotionModalEl.classList.remove('hidden');
-                        promotionModalEl.classList.add('flex');
+                // Check for pawn promotion move
+                const movingPiece = chessGame.get(selectedSquare);
+                const isPromotionMove = movingPiece && movingPiece.type === 'p' && 
+                    ((playerColor === 'w' && square[1] === '8') || (playerColor === 'b' && square[1] === '1'));
+
+                if (isPromotionMove) {
+                    // Check if move is legal
+                    const legalMoves = chessGame.moves({ square: selectedSquare, verbose: true });
+                    const isLegal = legalMoves.some(m => m.to === square);
+
+                    if (isLegal) {
+                        pendingPromotionMove = { from: selectedSquare, to: square };
+                        document.getElementById('promotion-modal').classList.remove('hidden');
                         return;
                     }
+                }
 
-                    executeMove({ from: selectedSquare, to: squareId, promotion: 'q' });
+                const moveResult = chessGame.move({
+                    from: selectedSquare,
+                    to: square,
+                    promotion: 'q'
+                });
+
+                if (moveResult) {
+                    selectedSquare = null;
+                    possibleMoves = [];
+                    renderBoard();
+
+                    if (!chessGame.game_over()) {
+                        document.getElementById('ai-status').innerText = 'Yapay zeka düşünüyor...';
+                        setTimeout(aiMove, 400);
+                    }
                 } else {
-                    const piece = game.get(squareId);
-                    if (piece && piece.color === game.turn()) {
-                        selectedSquare = squareId;
-                        possibleMoves = game.moves({ square: squareId, verbose: true }).map(m => m.to);
+                    if (piece && piece.color === playerColor) {
+                        selectedSquare = square;
+                        const moves = chessGame.moves({ square: square, verbose: true });
+                        possibleMoves = moves.map(m => m.to);
                         renderBoard();
                     } else {
                         selectedSquare = null;
@@ -196,97 +413,194 @@
             }
         }
 
-        function selectPromotion(pieceType) {
-            promotionModalEl.classList.add('hidden');
-            promotionModalEl.classList.remove('flex');
-            if (pendingPromotion) {
-                executeMove({ from: pendingPromotion.from, to: pendingPromotion.to, promotion: pieceType });
-                pendingPromotion = null;
+        function selectPromotionPiece(pieceType) {
+            document.getElementById('promotion-modal').classList.add('hidden');
+            if (!pendingPromotionMove) return;
+
+            const moveResult = chessGame.move({
+                from: pendingPromotionMove.from,
+                to: pendingPromotionMove.to,
+                promotion: pieceType
+            });
+
+            pendingPromotionMove = null;
+            selectedSquare = null;
+            possibleMoves = [];
+            renderBoard();
+
+            if (moveResult && !chessGame.game_over()) {
+                document.getElementById('ai-status').innerText = 'Yapay zeka düşünüyor...';
+                setTimeout(aiMove, 400);
             }
         }
 
-        function executeMove(moveDetails) {
-            const move = game.move(moveDetails);
-            selectedSquare = null;
-            possibleMoves = [];
+        function aiMove() {
+            if (chessGame.game_over()) return;
 
-            if (move) {
-                renderBoard();
-                if (!game.game_over()) {
-                    setTimeout(makeAIMove, 300);
+            const aiColor = (playerColor === 'w') ? 'b' : 'w';
+            if (chessGame.turn() !== aiColor) return;
+
+            const moves = chessGame.moves({ verbose: true });
+            if (moves.length === 0) return;
+
+            let chosenMove = null;
+
+            if (selectedDifficulty === 'easy') {
+                // Kolay Mod (Acemi Seviye): 
+                // %75 ihtimalle tamamen rastgele hamle yapar (taş kaptırabilir, boş hamle yapabilir)
+                if (Math.random() < 0.75) {
+                    chosenMove = moves[Math.floor(Math.random() * moves.length)];
+                } else {
+                    // %25 ihtimalle sadece 1 hamlelik basit kontrol yapar
+                    chosenMove = minimaxRoot(1, chessGame, aiColor === 'w');
+                }
+            } else if (selectedDifficulty === 'medium') {
+                // Normal: Orta seviye insan mantığı (Depth 2 Minimax)
+                chosenMove = minimaxRoot(2, chessGame, aiColor === 'w');
+            } else if (selectedDifficulty === 'hard') {
+                // Zor: Usta seviye mantık (Depth 3 Alpha-Beta + Positional evaluation)
+                chosenMove = minimaxRoot(3, chessGame, aiColor === 'w');
+            }
+
+            if (chosenMove) {
+                chessGame.move(chosenMove);
+            } else {
+                const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                chessGame.move(randomMove);
+            }
+
+            renderBoard();
+            if (!chessGame.game_over()) {
+                document.getElementById('ai-status').innerText = 'Sıra sizde';
+            }
+        }
+
+        function minimaxRoot(depth, game, isMaximizing) {
+            const newGameMoves = game.moves({ verbose: true });
+            let bestVal = isMaximizing ? -99999 : 99999;
+            let bestMove = null;
+
+            newGameMoves.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < newGameMoves.length; i++) {
+                const move = newGameMoves[i];
+                game.move(move);
+                const value = minimax(depth - 1, game, -100000, 100000, !isMaximizing);
+                game.undo();
+                
+                if (isMaximizing) {
+                    if (value > bestVal) {
+                        bestVal = value;
+                        bestMove = move;
+                    }
+                } else {
+                    if (value < bestVal) {
+                        bestVal = value;
+                        bestMove = move;
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        function minimax(depth, game, alpha, beta, isMaximizing) {
+            if (depth === 0) {
+                return evaluateBoard(game.board());
+            }
+
+            const newGameMoves = game.moves({ verbose: true });
+
+            if (isMaximizing) {
+                let maxEval = -99999;
+                for (let i = 0; i < newGameMoves.length; i++) {
+                    game.move(newGameMoves[i]);
+                    const evaluation = minimax(depth - 1, game, alpha, beta, false);
+                    game.undo();
+                    maxEval = Math.max(maxEval, evaluation);
+                    alpha = Math.max(alpha, evaluation);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = 99999;
+                for (let i = 0; i < newGameMoves.length; i++) {
+                    game.move(newGameMoves[i]);
+                    const evaluation = minimax(depth - 1, game, alpha, beta, true);
+                    game.undo();
+                    minEval = Math.min(minEval, evaluation);
+                    beta = Math.min(beta, evaluation);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
+        }
+
+        function evaluateBoard(board) {
+            let totalEvaluation = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = board[r][c];
+                    if (piece) {
+                        totalEvaluation += getPieceValue(piece, r, c);
+                    }
+                }
+            }
+            return totalEvaluation;
+        }
+
+        // Positional Bonus tables for Hard AI
+        const pawnEvalWhite = [
+            [0,  0,  0,  0,  0,  0,  0,  0],
+            [50, 50, 50, 50, 50, 50, 50, 50],
+            [10, 10, 20, 30, 30, 20, 10, 10],
+            [ 5,  5, 10, 25, 25, 10,  5,  5],
+            [ 0,  0,  0, 20, 20,  0,  0,  0],
+            [ 5, -5,-10,  0,  0,-10, -5,  5],
+            [ 5, 10, 10,-20,-20, 10, 10,  5],
+            [ 0,  0,  0,  0,  0,  0,  0,  0]
+        ];
+
+        function getPieceValue(piece, r, c) {
+            const values = { p: 10, n: 30, b: 30, r: 50, q: 90, k: 900 };
+            let val = values[piece.type];
+
+            // Add slight positional advantage for hard mode
+            if (selectedDifficulty === 'hard' && piece.type === 'p') {
+                val += (piece.color === 'w') ? pawnEvalWhite[r][c] : pawnEvalWhite[7 - r][c];
+            }
+
+            return piece.color === 'w' ? val : -val;
+        }
+
+        function updateGameStatusText() {
+            const statusEl = document.getElementById('game-status');
+            const aiStatusEl = document.getElementById('ai-status');
+
+            if (chessGame.in_checkmate()) {
+                const isWinner = chessGame.turn() !== playerColor;
+                if (isWinner) {
+                    statusEl.innerText = 'Şah Mat! Kazandınız!';
+                    aiStatusEl.innerText = 'Oyun Bitti';
+                    setTimeout(() => showGameOverModal('Kazandın', 'Tebrikler, harika bir galibiyet!', '🎉'), 600);
+                } else {
+                    statusEl.innerText = 'Şah Mat! Kaybettiniz!';
+                    aiStatusEl.innerText = 'Oyun Bitti';
+                    setTimeout(() => showGameOverModal('Kaybettin', 'Yapay zeka bu maçı kazandı.', '💔'), 600);
+                }
+            } else if (chessGame.in_draw()) {
+                statusEl.innerText = 'Oyun Berabere!';
+                aiStatusEl.innerText = 'Oyun Bitti';
+                setTimeout(() => showGameOverModal('Berabere kaldı', 'Oyun beraberlik veya pat ile sonuçlandı.', '🤝'), 600);
+            } else if (chessGame.in_check()) {
+                statusEl.innerText = 'Dikkat: Şah!';
+            } else {
+                if (chessGame.turn() === playerColor) {
+                    statusEl.innerText = 'Sıra sizde - Hamle yapın';
+                } else {
+                    statusEl.innerText = 'Yapay zeka düşünüyor...';
                 }
             }
         }
-
-        function makeAIMove() {
-            if (game.game_over()) return;
-
-            const moves = game.moves({ verbose: true });
-            if (moves.length === 0) return;
-
-            let selectedMove;
-
-            if (currentDifficulty === 'easy') {
-                // Kolay mod: Tamamen rastgele hamle yapar, bazen saçmalar
-                selectedMove = moves[Math.floor(Math.random() * moves.length)];
-            } else if (currentDifficulty === 'normal') {
-                // Normal mod: Taş alabiliyorsa alır, yoksa rastgele oynar
-                const captures = moves.filter(m => m.captured);
-                selectedMove = captures.length > 0 ? captures[Math.floor(Math.random() * captures.length)] : moves[Math.floor(Math.random() * moves.length)];
-            } else {
-                // Zor mod: Basit ağırlıklandırma (taş yemeyi önceliklendirir)
-                selectedMove = moves.reduce((best, m) => (m.captured ? m : best), moves[0]);
-            }
-
-            game.move(selectedMove);
-            renderBoard();
-            checkGameOver();
-        }
-
-        function updateStatus() {
-            let statusText = '';
-            const turn = game.turn() === 'w' ? 'Beyaz' : 'Siyah';
-
-            if (game.in_checkmate()) {
-                statusText = `Şah Mat! Kazanan: ${game.turn() === 'w' ? 'Siyah' : 'Beyaz'}`;
-                showModal(game.turn() === 'w' ? 'Kaybettiniz!' : 'Kazandınız!', statusText);
-            } else if (game.in_draw()) {
-                statusText = 'Oyun Berabere!';
-                showModal('Beraberlik', 'Oyun berabere bitti.');
-            } else {
-                statusText = `Sıra: ${turn}`;
-                if (game.in_check()) statusText += ' (ŞAH!)';
-            }
-            statusEl.textContent = statusText;
-        }
-
-        function checkGameOver() {
-            if (game.game_over()) {
-                updateStatus();
-            }
-        }
-
-        function showModal(title, msg) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = msg;
-            modalEl.classList.remove('hidden');
-            modalEl.classList.add('flex');
-        }
-
-        function closeModal() {
-            modalEl.classList.add('hidden');
-            modalEl.classList.remove('flex');
-        }
-
-        function resetGame() {
-            game.reset();
-            selectedSquare = null;
-            possibleMoves = [];
-            closeModal();
-            renderBoard();
-        }
-
-        renderBoard();
     </script>
 </body>
 </html>
