@@ -1,2 +1,217 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Destekli Satranç v1.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; user-select: none; }
+        .board-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-between p-4">
+    
+    <!-- Üst Bilgi ve Zorluk Seçimi -->
+    <header class="w-full max-w-md flex flex-col items-center gap-2 my-2">
+        <div class="flex justify-between items-center w-full px-2">
+            <h1 class="text-xl font-bold tracking-wide">AI Destekli Satranç v1.5</h1>
+            <div class="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700">
+                <span class="text-xl">♟️</span>
+            </div>
+        </div>
+        <div class="flex items-center justify-between w-full bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 text-sm">
+            <span class="text-slate-400">Zorluk Seviyesi:</span>
+            <select id="difficulty" class="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none">
+                <option value="easy">Kolay</option>
+                <option value="normal" selected>Normal</option>
+                <option value="hard">Zor</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Satranç Tahtası Alanı -->
+    <main class="w-full max-w-md flex flex-col items-center">
+        <div id="status" class="text-sm font-medium text-slate-300 mb-2">Sıra sizde (Beyaz)</div>
+        <div id="board" class="board-grid w-full rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800"></div>
+    </main>
+
+    <!-- Alt Kontroller -->
+    <footer class="w-full max-w-md flex justify-center gap-4 my-4">
+        <button onclick="resetGame()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl transition shadow-lg">
+            Yeni Oyun
+        </button>
+    </footer>
+
+    <!-- Oyun Sonu Modalı -->
+    <div id="gameModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-2">Oyun Bitti</h3>
+            <p id="modalMessage" class="text-slate-300 mb-6">Sonuç durumu burada yer alacak.</p>
+            <button onclick="resetGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition">
+                Tekrar Oyna
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const pieceSymbols = {
+            'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
+            'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+        };
+
+        let game = new Chess();
+        let selectedSquare = null;
+        let possibleMoves = [];
+
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        const modalEl = document.getElementById('gameModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const difficultyEl = document.getElementById('difficulty');
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            const board = game.board();
+            
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const squareId = String.fromCharCode(97 + c) + (8 - r);
+                    const square = board[r][c];
+                    const isDark = (r + c) % 2 === 1;
+                    const isSelected = selectedSquare === squareId;
+                    const isPossible = possibleMoves.includes(squareId);
+
+                    const sqEl = document.createElement('div');
+                    sqEl.className = `flex items-center justify-center text-4xl cursor-pointer relative ${
+                        isDark ? 'bg-amber-900/60' : 'bg-amber-100/80'
+                    } ${isSelected ? 'ring-4 ring-indigo-500 inset-0' : ''}`;
+                    
+                    if (isPossible) {
+                        const dot = document.createElement('div');
+                        dot.className = 'absolute w-4 h-4 bg-indigo-500/60 rounded-full';
+                        sqEl.appendChild(dot);
+                    }
+
+                    if (square) {
+                        const pieceSpan = document.createElement('span');
+                        pieceSpan.textContent = pieceSymbols[square.color === 'w' ? square.type.toUpperCase() : square.type];
+                        pieceSpan.className = `${square.color === 'w' ? 'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]' : 'text-slate-950'} font-bold transition-transform hover:scale-110`;
+                        sqEl.appendChild(pieceSpan);
+                    }
+
+                    sqEl.addEventListener('click', () => handleSquareClick(squareId));
+                    boardEl.appendChild(sqEl);
+                }
+            }
+            updateStatus();
+        }
+
+        function handleSquareClick(squareId) {
+            if (game.game_over()) return;
+
+            if (selectedSquare === null) {
+                const piece = game.get(squareId);
+                if (piece && piece.color === game.turn()) {
+                    selectedSquare = squareId;
+                    possibleMoves = game.moves({ square: squareId, verbose: true }).map(m => m.to);
+                    renderBoard();
+                }
+            } else {
+                const move = game.move({
+                    from: selectedSquare,
+                    to: squareId,
+                    promotion: 'q'
+                });
+
+                selectedSquare = null;
+                possibleMoves = [];
+
+                if (move) {
+                    renderBoard();
+                    if (!game.game_over()) {
+                        setTimeout(makeAIMove, 250);
+                    }
+                } else {
+                    const piece = game.get(squareId);
+                    if (piece && piece.color === game.turn()) {
+                        selectedSquare = squareId;
+                        possibleMoves = game.moves({ square: squareId, verbose: true }).map(m => m.to);
+                        renderBoard();
+                    } else {
+                        renderBoard();
+                    }
+                }
+            }
+        }
+
+        function makeAIMove() {
+            if (game.game_over()) return;
+
+            const moves = game.moves({ verbose: true });
+            if (moves.length === 0) return;
+
+            const diff = difficultyEl.value;
+            let selectedMove;
+
+            if (diff === 'easy') {
+                selectedMove = moves[Math.floor(Math.random() * moves.length)];
+            } else if (diff === 'normal') {
+                const captures = moves.filter(m => m.captured);
+                selectedMove = captures.length > 0 ? captures[Math.floor(Math.random() * captures.length)] : moves[Math.floor(Math.random() * moves.length)];
+            } else {
+                // Hard: Basit önceliklendirme
+                selectedMove = moves.reduce((best, m) => (m.captured ? m : best), moves[0]);
+            }
+
+            game.move(selectedMove);
+            renderBoard();
+            checkGameOver();
+        }
+
+        function updateStatus() {
+            let statusText = '';
+            const turn = game.turn() === 'w' ? 'Beyaz' : 'Siyah';
+
+            if (game.in_checkmate()) {
+                statusText = `Şah Mat! Kazanan: ${game.turn() === 'w' ? 'Siyah' : 'Beyaz'}`;
+                showModal(game.turn() === 'w' ? 'Kaybettiniz!' : 'Kazandınız!', statusText);
+            } else if (game.in_draw()) {
+                statusText = 'Oyun Berabere!';
+                showModal('Beraberlik', 'Oyun berabere bitti.');
+            } else {
+                statusText = `Sıra: ${turn}`;
+                if (game.in_check()) statusText += ' (ŞAH!)';
+            }
+            statusEl.textContent = statusText;
+        }
+
+        function checkGameOver() {
+            if (game.game_over()) {
+                updateStatus();
+            }
+        }
+
+        function showModal(title, msg) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = msg;
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('flex');
+        }
+
+        function resetGame() {
+            game.reset();
+            selectedSquare = null;
+            possibleMoves = [];
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+            renderBoard();
+        }
+
+        renderBoard();
+    </script>
+</body>
+</html>
